@@ -1,0 +1,5 @@
+selenium==4.19.0
+requests
+beautifulsoup4
+oauth2client
+gspread
