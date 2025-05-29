@@ -106,22 +106,22 @@ def append_to_sheet(data, existing_urls):
     sheet = client.open(SHEET_NAME).sheet1
 
     existing = sheet.get_all_values()
-    start_row = len(existing) + 1 if existing else 2
-
-    if len(existing) == 0:
+    if not existing:
         headers = ["ID", "収集時刻", "タイトル", "情報源", "掲載時刻", "URL", "ジャンル", "本文"]
-        sheet.insert_row(headers, index=1)
+        sheet.append_row(headers)
         print("[INFO] Header row inserted.")
 
-    new_rows = 0
-    for i, row in enumerate(data):
-        if row[5] not in existing_urls:
-            sheet.insert_row(row, index=start_row)
-            print(f"[DEBUG] Inserted row for: {row[2]}")
-            start_row += 1
-            new_rows += 1
+    # 新規URLフィルタリング
+    new_rows = [row for row in data if row[5] not in existing_urls]
+    print(f"[INFO] {len(new_rows)} new unique records to write.")
 
-    print(f"[INFO] Completed. {new_rows} rows added.")
+    if new_rows:
+        # 一括書き込み
+        sheet.append_rows(new_rows, value_input_option="RAW")
+        print(f"[INFO] Completed. {len(new_rows)} rows added.")
+    else:
+        print("[INFO] No new records to write.")
+
 
 # メイン処理
 if __name__ == "__main__":
