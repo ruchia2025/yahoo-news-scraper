@@ -1,11 +1,7 @@
-# -----------------------------
-# main.py（もっと見る対応・複数ページ記事対応・デバッグログ付き）
-# -----------------------------
 import time
 import re
 import json
 from datetime import datetime, timezone, timedelta
-import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -102,6 +98,7 @@ def extract_article_info(driver, url):
                     json_str = json_str[:-1]
                 
                 state_data = json.loads(json_str)
+                print(f"[DEBUG] Raw __PRELOADED_STATE__ data: {state_data}") # この行を追加
                 
                 category_short_name = state_data.get('pageData', {}).get('categoryShortName')
                 sub_category = state_data.get('articleDetail', {}).get('subCategory')
