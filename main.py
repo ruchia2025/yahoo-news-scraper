@@ -88,14 +88,42 @@ def extract_article_info(driver, url):
                         provider = data.get("author", {}).get("name", provider)
                 except Exception as e:
                     print(f"[DEBUG] Failed to parse ld+json: {e}")
+        
+        genre = "国内" # Default genre if not found
+
+        # Extract genre from __PRELOADED_STATE__
+        preloaded_state_script = soup.find('script', string=re.compile(r'window.__PRELOADED_STATE__'))
+        if preloaded_state_script:
+            try:
+                # Extract the JSON string from the script tag
+                json_str = preloaded_state_script.string.split('window.__PRELOADED_STATE__ = ')[1].strip()
+                # Remove trailing semicolon if present
+                if json_str.endswith(';'):
+                    json_str = json_str[:-1]
+                
+                state_data = json.loads(json_str)
+                
+                category_short_name = state_data.get('pageData', {}).get('categoryShortName')
+                sub_category = state_data.get('articleDetail', {}).get('subCategory')
+
+                if category_short_name and sub_category:
+                    genre = f"{category_short_name.capitalize()}/{sub_category.capitalize()}"
+                elif category_short_name:
+                    genre = category_short_name.capitalize()
+                
+                print(f"[DEBUG] Extracted genre: {genre}")
+            except json.JSONDecodeError as e:
+                print(f"[DEBUG] Failed to parse __PRELOADED_STATE__ JSON: {e}")
+            except Exception as e:
+                print(f"[DEBUG] An unexpected error occurred while processing __PRELOADED_STATE__: {e}")
 
         pub_time = soup.find("time").get_text(strip=True) if soup.find("time") else ""
         body = extract_full_body(driver, url)
 
-        return title, provider, pub_time, body[:3000] if body else ""
+        return title, provider, pub_time, body[:3000] if body else "", genre
     except Exception as e:
         print(f"[ERROR] Failed to extract article info from {url}: {e}")
-        return "ERROR", "ERROR", "", ""
+        return "ERROR", "ERROR", "", "", "Unknown" # Return "Unknown" for genre in case of error
 
 # スプレッドシートへ書き込み
 def append_to_sheet(data, existing_urls):
@@ -169,14 +197,14 @@ if __name__ == "__main__":
             continue
         seen_urls.add(article_url)
 
-        title, provider, pub_time, body = extract_article_info(driver, article_url)
+        title, provider, pub_time, body, genre = extract_article_info(driver, article_url)
         print(f"[DEBUG] Body head: {body[:80]}\n")
         if not body or not title:
             print(f"[SKIP] Invalid content from: {article_url}")
             skipped += 1
             continue
 
-        print(f"[ADD] {title} ({article_url})")
+        print(f"[ADD] {title} ({article_url}) - Genre: {genre}")
         data.append([
             f"{today_str} {counter}",
             timestamp,
@@ -184,7 +212,7 @@ if __name__ == "__main__":
             provider,
             pub_time,
             article_url,
-            "国内",
+            genre, # Use the extracted genre
             body
         ])
         counter += 1
