@@ -88,35 +88,55 @@ def extract_article_info(driver, url):
         genre = "国内" # Default genre if not found
 
         # Extract genre from __PRELOADED_STATE__
-        preloaded_state_script = soup.find('script', string=re.compile(r'window.__PRELOADED_STATE__'))
-        if preloaded_state_script:
+        # Use regex to precisely capture the JSON object
+        preloaded_state_match = re.search(r'window\.__PRELOADED_STATE__ = (\{.*?\});', driver.page_source, re.DOTALL)
+        
+        if preloaded_state_match:
+            json_str = preloaded_state_match.group(1)
             try:
-                # Extract the JSON string from the script tag
-                json_str = preloaded_state_script.string.split('window.__PRELOADED_STATE__ = ')[1].strip()
-                # Remove trailing semicolon if present
-                if json_str.endswith(';'):
-                    json_str = json_str[:-1]
-                
                 state_data = json.loads(json_str)
-                print(f"[DEBUG] Raw __PRELOADED_STATE__ data: {state_data}") # この行を追加
+                print(f"[DEBUG] Raw __PRELOADED_STATE__ data: {state_data}")
                 
-                category_short_name = state_data.get('pageData', {}).get('categoryShortName')
+                # Attempt to get category and subcategory from articleDetail first
+                category_short_name = state_data.get('articleDetail', {}).get('categoryShortName')
                 sub_category = state_data.get('articleDetail', {}).get('subCategory')
 
-                if category_short_name and sub_category:
-                    genre = f"{category_short_name.capitalize()}/{sub_category.capitalize()}"
-                elif category_short_name:
-                    genre = category_short_name.capitalize()
+                # If not found in articleDetail, try pageData.pageParam.cat_path
+                if not (category_short_name and sub_category):
+                    cat_path = state_data.get('pageData', {}).get('pageParam', {}).get('cat_path')
+                    if cat_path:
+                        path_parts = cat_path.split(',')
+                        if len(path_parts) >= 2 and path_parts[0] and path_parts[1]:
+                            category_short_name = path_parts[0]
+                            sub_category = path_parts[1]
+                        elif len(path_parts) == 1 and path_parts[0]:
+                            category_short_name = path_parts[0]
+                            sub_category = None # Ensure sub_category is None if only one part
+
+                print(f"[DEBUG] Resolved category_short_name: {category_short_name}, type: {type(category_short_name)}")
+                print(f"[DEBUG] Resolved sub_category: {sub_category}, type: {type(sub_category)}")
+
+                # Construct genre string if valid parts are found
+                if category_short_name and isinstance(category_short_name, str) and len(category_short_name) > 0:
+                    category_cap = category_short_name.capitalize()
+                    if sub_category and isinstance(sub_category, str) and len(sub_category) > 0:
+                        sub_cap = sub_category.capitalize()
+                        genre = f"{category_cap}/{sub_cap}"
+                    else:
+                        genre = category_cap
                 
-                print(f"[DEBUG] Extracted genre: {genre}")
+                print(f"[DEBUG] Extracted genre from JSON: {genre}")
             except json.JSONDecodeError as e:
-                print(f"[DEBUG] Failed to parse __PRELOADED_STATE__ JSON: {e}")
+                print(f"[DEBUG] Failed to parse __PRELOADED_STATE__ JSON (regex method): {e}")
             except Exception as e:
-                print(f"[DEBUG] An unexpected error occurred while processing __PRELOADED_STATE__: {e}")
+                print(f"[DEBUG] An unexpected error occurred while processing __PRELOADED_STATE__ (regex method): {e}")
+        else:
+            print("[DEBUG] __PRELOADED_STATE__ script not found or regex failed to match.")
 
         pub_time = soup.find("time").get_text(strip=True) if soup.find("time") else ""
         body = extract_full_body(driver, url)
 
+        print(f"[DEBUG] Final genre before return: {genre}")
         return title, provider, pub_time, body[:3000] if body else "", genre
     except Exception as e:
         print(f"[ERROR] Failed to extract article info from {url}: {e}")
