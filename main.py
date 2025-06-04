@@ -88,11 +88,11 @@ def extract_article_info(driver, url):
         genre = "国内" # Default genre if not found
 
         # Extract genre from __PRELOADED_STATE__
-        # Use regex to precisely capture the JSON object
-        preloaded_state_match = re.search(r'window\.__PRELOADED_STATE__ = (\{.*?\});', driver.page_source, re.DOTALL)
+        # Use regex to precisely capture the JSON object (excluding trailing semicolon)
+        preloaded_state_match = re.search(r'window\.__PRELOADED_STATE__ = (\{.*?\})[;]?', driver.page_source, re.DOTALL)
         
         if preloaded_state_match:
-            json_str = preloaded_state_match.group(1)
+            json_str = preloaded_state_match.group(1) # Get only the JSON object
             try:
                 state_data = json.loads(json_str)
                 print(f"[DEBUG] Raw __PRELOADED_STATE__ data: {state_data}")
