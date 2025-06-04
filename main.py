@@ -201,7 +201,7 @@ def append_to_sheet(data, existing_urls):
 if __name__ == "__main__":
     print("[START] Yahoo News scraping started.")
     driver = init_driver()
-    driver.get("[https://news.yahoo.co.jp/categories/domestic](https://news.yahoo.co.jp/categories/domestic)")
+    driver.get("https://news.yahoo.co.jp/categories/domestic")
 
     for i in range(5):
         try:
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     timestamp = datetime.now(jst).strftime("%Y/%m/%d %H:%M")
     today_str = datetime.now(jst).strftime("%Y/%m/%d")
 
-    articles = soup.select("a[href^='[https://news.yahoo.co.jp/articles/](https://news.yahoo.co.jp/articles/)']")
+    articles = soup.select("a[href^='https://news.yahoo.co.jp/articles/']")
     print(f"[DEBUG] Found {len(articles)} article links.")
     seen_urls = set()
     data = []
